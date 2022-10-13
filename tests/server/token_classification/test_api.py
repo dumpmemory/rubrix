@@ -18,7 +18,7 @@ import pytest
 
 from rubrix.server.apis.v0.models.commons.model import BulkResponse, SortableField
 from rubrix.server.apis.v0.models.token_classification import (
-    TokenClassificationBulkData,
+    TokenClassificationBulkRequest,
     TokenClassificationQuery,
     TokenClassificationRecord,
     TokenClassificationSearchRequest,
@@ -41,7 +41,7 @@ def test_load_as_different_task(mocked_client):
     ]
     mocked_client.post(
         f"/api/datasets/{dataset}/TokenClassification:bulk",
-        json=TokenClassificationBulkData(
+        json=TokenClassificationBulkRequest(
             tags={"env": "test", "class": "text classification"},
             metadata={"config": {"the": "config"}},
             records=records,
@@ -80,7 +80,7 @@ def test_search_special_characters(mocked_client):
     ]
     mocked_client.post(
         f"/api/datasets/{dataset}/TokenClassification:bulk",
-        json=TokenClassificationBulkData(
+        json=TokenClassificationBulkRequest(
             tags={"env": "test", "class": "text classification"},
             metadata={"config": {"the": "config"}},
             records=records,
@@ -91,6 +91,16 @@ def test_search_special_characters(mocked_client):
         f"/api/datasets/{dataset}/TokenClassification:search",
         json=TokenClassificationSearchRequest(
             query=TokenClassificationQuery(query_text="\!")
+        ).dict(),
+    )
+    assert response.status_code == 200, response.json()
+    results = TokenClassificationSearchResults.parse_obj(response.json())
+    assert results.total == 0
+
+    response = mocked_client.post(
+        f"/api/datasets/{dataset}/TokenClassification:search",
+        json=TokenClassificationSearchRequest(
+            query=TokenClassificationQuery(query_text="text.exact:\!")
         ).dict(),
     )
     assert response.status_code == 200, response.json()
@@ -113,7 +123,7 @@ def test_some_sort(mocked_client):
     ]
     mocked_client.post(
         f"/api/datasets/{dataset}/TokenClassification:bulk",
-        json=TokenClassificationBulkData(
+        json=TokenClassificationBulkRequest(
             tags={"env": "test", "class": "text classification"},
             metadata={"config": {"the": "config"}},
             records=records,
@@ -133,11 +143,10 @@ def test_some_sort(mocked_client):
             "code": "rubrix.api.errors::BadRequestError",
             "params": {
                 "message": "Wrong sort id babba. Valid values are: "
-                "['metadata', 'last_updated', 'score', "
-                "'predicted', 'predicted_as', "
-                "'predicted_by', 'annotated_as', "
-                "'annotated_by', 'status', "
-                "'event_timestamp']"
+                "['id', 'metadata', 'score', 'predicted', "
+                "'predicted_as', 'predicted_by', "
+                "'annotated_as', 'annotated_by', 'status', "
+                "'last_updated', 'event_timestamp']"
             },
         }
     }
@@ -175,7 +184,7 @@ def test_create_records_for_token_classification(
 
     response = mocked_client.post(
         f"/api/datasets/{dataset}/TokenClassification:bulk",
-        json=TokenClassificationBulkData(
+        json=TokenClassificationBulkRequest(
             tags={"env": "test", "class": "text classification"},
             metadata={"config": {"the": "config"}},
             records=records,
@@ -257,7 +266,7 @@ def test_multiple_mentions_in_same_record(mocked_client):
     ]
     response = mocked_client.post(
         f"/api/datasets/{dataset}/TokenClassification:bulk",
-        json=TokenClassificationBulkData(
+        json=TokenClassificationBulkRequest(
             tags={"env": "test", "class": "text classification"},
             metadata={"config": {"the": "config"}},
             records=records,
@@ -285,7 +294,7 @@ def test_show_not_aggregable_metadata_fields(mocked_client):
 
     response = mocked_client.post(
         f"/api/datasets/{dataset}/TokenClassification:bulk",
-        json=TokenClassificationBulkData(
+        json=TokenClassificationBulkRequest(
             records=[
                 TokenClassificationRecord.parse_obj(
                     {

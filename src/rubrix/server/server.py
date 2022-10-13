@@ -16,7 +16,10 @@
 """
 This module configures the global fastapi application
 """
+import inspect
 import os
+import sys
+import warnings
 from pathlib import Path
 
 from brotli_asgi import BrotliMiddleware
@@ -27,14 +30,16 @@ from pydantic import ConfigError
 
 from rubrix import __version__ as rubrix_version
 from rubrix.logging import configure_logging
-from rubrix.server.apis.v0.settings.server import settings
-from rubrix.server.apis.v0.settings.server import settings as api_settings
+from rubrix.server.daos.backend.elasticsearch import (
+    ElasticsearchBackend,
+    GenericSearchError,
+)
 from rubrix.server.daos.datasets import DatasetsDAO
 from rubrix.server.daos.records import DatasetRecordsDAO
-from rubrix.server.elasticseach.client_wrapper import create_es_wrapper
-from rubrix.server.errors import APIErrorHandler
+from rubrix.server.errors import APIErrorHandler, EntityNotFoundError
 from rubrix.server.routes import api_router
 from rubrix.server.security import auth
+from rubrix.server.settings import settings
 from rubrix.server.static_rewrite import RewriteStaticFiles
 
 
@@ -43,7 +48,7 @@ def configure_middleware(app: FastAPI):
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=api_settings.cors_origins,
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -54,6 +59,7 @@ def configure_middleware(app: FastAPI):
 
 def configure_api_exceptions(api: FastAPI):
     """Configures fastapi exception handlers"""
+    api.exception_handler(EntityNotFoundError)(APIErrorHandler.common_exception_handler)
     api.exception_handler(Exception)(APIErrorHandler.common_exception_handler)
     api.exception_handler(RequestValidationError)(
         APIErrorHandler.common_exception_handler
@@ -86,17 +92,15 @@ def configure_app_statics(app: FastAPI):
 def configure_app_storage(app: FastAPI):
     @app.on_event("startup")
     async def configure_elasticsearch():
-        import opensearchpy
-
         try:
-            es_wrapper = create_es_wrapper()
+            es_wrapper = ElasticsearchBackend.get_instance()
             dataset_records: DatasetRecordsDAO = DatasetRecordsDAO(es_wrapper)
             datasets: DatasetsDAO = DatasetsDAO.get_instance(
                 es_wrapper, records_dao=dataset_records
             )
             datasets.init()
             dataset_records.init()
-        except opensearchpy.exceptions.ConnectionError as error:
+        except GenericSearchError as error:
             raise ConfigError(
                 f"Your Elasticsearch endpoint at {settings.obfuscated_elasticsearch()} "
                 "is not available or not responding.\n"
@@ -122,10 +126,39 @@ app = FastAPI(
     description="Rubrix API",
     # Disable default openapi configuration
     openapi_url="/api/docs/spec.json",
-    docs_url="/api/docs" if api_settings.docs_enabled else None,
+    docs_url="/api/docs" if settings.docs_enabled else None,
     redoc_url=None,
     version=str(rubrix_version),
 )
+
+
+def configure_telemetry(app):
+    message = "\n"
+    message += inspect.cleandoc(
+        """
+        Rubrix uses telemetry to report anonymous usage and error information.
+
+        You can know more about what information is reported at:
+
+            https://rubrix.readthedocs.io/en/stable/reference/telemetry.html
+
+        Telemetry is currently enabled. If you want to disable it, you can configure
+        the environment variable before relaunching the server:
+    """
+    )
+    message += "\n\n    "
+    message += (
+        "#set RUBRIX_ENABLE_TELEMETRY=0"
+        if os.name == "nt"
+        else "$>export RUBRIX_ENABLE_TELEMETRY=0"
+    )
+    message += "\n"
+
+    @app.on_event("startup")
+    async def check_telemetry():
+        if settings.enable_telemetry:
+            print(message, flush=True)
+
 
 for app_configure in [
     configure_app_logging,
@@ -135,5 +168,6 @@ for app_configure in [
     configure_api_router,
     configure_app_statics,
     configure_app_storage,
+    configure_telemetry,
 ]:
     app_configure(app)

@@ -19,18 +19,16 @@
   <div
     ref="dropdownMenu"
     v-click-outside="onClickOutside"
-    class="dropdown"
-    :class="visible ? 'dropdown--open' : ''"
+    :class="[
+      'dropdown',
+      colorType === 'grey' ? '--grey' : '',
+      visible ? 'dropdown--open' : '',
+    ]"
   >
     <div class="dropdown__header" @click="onClick">
       <slot name="dropdown-header" />
-      <span
-        :class="visible ? 'dropdown__check--open' : ''"
-        class="dropdown__check"
-        aria-hidden="true"
-      />
     </div>
-    <div v-show="visible" class="dropdown__content">
+    <div v-show="visible" class="dropdown__content" :style="positionStyle">
       <slot name="dropdown-content" />
     </div>
   </div>
@@ -41,19 +39,78 @@ export default {
   directives: {
     clickOutside: ClickOutside.directive,
   },
+  data: () => {
+    return {
+      dropdownContentPosition: undefined,
+      scrollContainerName: ".filters--scrollable",
+      position: {},
+    };
+  },
   props: {
     visible: {
       default: false,
       type: Boolean,
+    },
+    colorType: {
+      default: "white",
+      type: String,
+    },
+  },
+  computed: {
+    positionStyle() {
+      if (this.dropdownContentPosition) {
+        return {
+          top: `${this.dropdownContentPosition.top}px`,
+          left: `${this.dropdownContentPosition.left}px`,
+        };
+      }
+    },
+    dropdownHeight() {
+      return this.$refs.dropdownMenu.getBoundingClientRect().height;
     },
   },
   methods: {
     onClickOutside() {
       this.$emit("visibility", false);
     },
+    getPosition() {
+      if (document.querySelector(this.scrollContainerName)) {
+        this.position = this.$refs.dropdownMenu.getBoundingClientRect();
+        this.dropdownContentPosition = {
+          top: this.position.top - this.dropdownHeight - 40,
+          left: this.$refs.dropdownMenu.offsetLeft,
+        };
+      }
+    },
     onClick() {
       this.$emit("visibility", !this.visible);
+      if (document.querySelector(this.scrollContainerName)) {
+        this.getPosition();
+        document
+          .querySelector(this.scrollContainerName)
+          .addEventListener("scroll", this.handleScroll);
+      }
     },
+    handleScroll() {
+      const scrollContainerHeight = document.querySelector(
+        this.scrollContainerName
+      ).offsetHeight;
+      if (
+        this.position.top - this.dropdownHeight - 20 > 0 &&
+        this.position.top < scrollContainerHeight + this.dropdownHeight + 20
+      ) {
+        this.getPosition();
+      } else {
+        this.$emit("visibility", false);
+      }
+    },
+  },
+  beforeDestroy() {
+    if (document.querySelector(this.scrollContainerName)) {
+      document
+        .querySelector(this.scrollContainerName)
+        .removeEventListener("scroll", this.handleScroll);
+    }
   },
 };
 </script>
@@ -65,7 +122,7 @@ export default {
     height: 100%;
     width: auto;
     height: 45px;
-    border: 1px solid $line-smooth-color;
+    border: 1px solid palette(grey, 600);
     display: flex;
     align-items: center;
     padding: 0 20px;
@@ -73,12 +130,12 @@ export default {
     border-radius: $border-radius;
     &:after {
       content: "";
-      border-color: $darker-color;
+      border-color: $font-dark;
       border-style: solid;
       border-width: 1px 1px 0 0;
       display: inline-block;
-      height: 8px;
-      width: 8px;
+      height: $base-space;
+      width: $base-space;
       -webkit-transform: rotate(133deg);
       transform: rotate(133deg);
       -webkit-transition: all 1.5s ease;
@@ -90,7 +147,7 @@ export default {
     &:hover,
     &:focus {
       border-color: $primary-color;
-      background: $lighter-color;
+      background: palette(white);
       transition: all 0.3s ease;
       &:after {
         border-color: $primary-color;
@@ -119,92 +176,32 @@ export default {
       }
     }
   }
-  &__check {
-    display: none;
-  }
   &__content {
     position: absolute;
     top: calc(100% + 10px);
     left: 0;
     margin-top: 0;
     box-shadow: $shadow;
-    background: $lighter-color;
-    border: 1px solid $primary-color;
-    padding: 10px 20px 10px 20px;
+    padding: 10px 20px 20px 20px;
     z-index: 3;
     transform: translate(0);
     right: auto;
-    .filter-options {
-      border: none;
-      outline: none;
-      height: 40px;
-    }
-    ul {
-      max-height: 240px;
-      overflow-y: auto;
-      margin: 0 -1em 0 -1em;
-      padding: 0 1em 1em 1em;
-    }
-    li {
-      padding: 0.4em 0;
-      list-style: none;
-    }
+    box-shadow: $shadow;
+    border-radius: $border-radius;
+    background: palette(white);
   }
   &--open {
     pointer-events: all;
-    .dropdown__content {
-      min-width: 270px;
-    }
-  }
-  input {
-    left: 0;
-    height: 40px;
-    width: 100%;
-    outline: none;
-    z-index: 1;
-    border: 0;
-  }
-  .clean-search {
-    z-index: 1;
-    display: block;
-    position: absolute;
-    right: 1em;
-    top: 1em;
-    cursor: pointer;
-  }
-}
-.dropdown--filter {
-  &.highlighted {
-    .dropdown__header {
-      border: 1px solid $primary-color;
-    }
-  }
-  &.dropdown--open {
-    .placeholder {
-      display: block;
-    }
-    .dropdown__header {
-      border: 1px solid palette(grey, light);
-      background: palette(grey, light);
-      &:after {
-        visibility: hidden;
-      }
-      .tag-icon {
-        display: none;
+    &.--grey {
+      .dropdown__content,
+      .dropdown__header {
+        background: palette(grey, 700);
+        border-color: palette(grey, 700);
       }
     }
     .dropdown__content {
-      border: 1px solid palette(grey, light);
-      background: palette(grey, light);
+      width: 270px;
     }
-    .filter-options {
-      background: palette(grey, light);
-    }
-  }
-  .re-checkbox {
-    margin: 0;
-    width: 100% !important;
-    cursor: default;
   }
 }
 </style>

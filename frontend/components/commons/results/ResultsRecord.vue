@@ -23,14 +23,14 @@
         item.status === 'Discarded' ? 'discarded' : null,
       ]"
     >
-      <ReCheckbox
+      <base-checkbox
         v-if="annotationEnabled"
         class="list__checkbox"
         :value="item.selected"
         @change="onCheckboxChanged($event, item.id)"
-      ></ReCheckbox>
+      ></base-checkbox>
       <slot :record="item" />
-      <RecordExtraActions
+      <record-extra-actions
         :key="item.id"
         :allow-change-status="annotationEnabled"
         :record="item"
@@ -111,26 +111,22 @@ export default {
 .list {
   &__checkbox.re-checkbox {
     position: absolute;
-    left: 1.4em;
-    top: 0.2em;
+    left: $base-space * 2;
+    top: $base-space * 2;
+    margin: 0;
     width: auto;
   }
   &__item {
     position: relative;
-    background: $lighter-color;
-    border-radius: 1px;
+    background: palette(white);
+    border-radius: $border-radius-m;
     display: inline-block;
     width: 100%;
-    transition: 0.3s ease-in-out;
-    border: 1px solid palette(grey, smooth);
-    border-bottom: 0;
-    &__asterisk {
-      @include font-size(24px);
-      color: $secondary-color;
-    }
+    border: 1px solid palette(grey, 600);
+    margin-bottom: $base-space-between-records;
     &--annotation-mode {
-      // padding-left: 4em;
       @extend .list__item !optional;
+      padding-left: $base-space;
       &.discarded {
         opacity: 0.5;
         transition: 0.3s ease-in-out;
@@ -140,15 +136,8 @@ export default {
         }
       }
     }
-    &__checkbox.re-checkbox {
-      position: absolute;
-      left: 1.2em;
-      top: 1.2em;
-      width: auto;
-    }
   }
 }
-
 .list-enter-active,
 .list-leave-active {
   transition: all 0.5s ease;

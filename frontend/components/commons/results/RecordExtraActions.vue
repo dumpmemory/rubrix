@@ -17,36 +17,32 @@
 
 <template>
   <div v-click-outside="close" :key="open" class="record__extra-actions">
-    <a
-      v-if="hasMetadata || allowChangeStatus"
-      class="extra-actions__button"
-      href="#"
-      @click.prevent="open = !open"
-      ><svgicon name="kebab-menu-v" width="20" height="20" color="#4A4A4A"
+    <a class="extra-actions__button" href="#" @click.prevent="open = !open"
+      ><svgicon name="kebab-menu" width="20" height="20" color="#4A4A4A"
     /></a>
     <div v-if="open" class="extra-actions__content">
       <div v-if="hasMetadata" @click="showMetadata()">
         <span>View metadata</span>
       </div>
-      <template v-if="allowChangeStatus">
-        <div
-          v-for="status in allowedStatusActions"
-          :key="status.key"
-          :class="record.status === 'Discarded' ? 'disabled' : null"
-          @click="onChangeRecordStatus(status.key)"
-        >
-          <span>{{
-            record.status === "Discarded" ? "Discarded" : status.name
-          }}</span>
+      <base-action-tooltip tooltip="Copied">
+        <div @click="$copyToClipboard(record.clipboardText)">
+          <span>Copy text</span>
         </div>
-      </template>
+      </base-action-tooltip>
+      <div
+        v-if="allowChangeStatus"
+        :class="record.status === 'Discarded' ? 'disabled' : null"
+        @click="onChangeRecordStatus('Discarded')"
+      >
+        <span>Discard record</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import { BaseRecord } from "@/models/Common";
-import "assets/icons/kebab-menu-v";
+import "assets/icons/kebab-menu";
 import { IdState } from "vue-virtual-scroller";
 
 export default {
@@ -78,16 +74,6 @@ export default {
       open: false,
     };
   },
-  data: () => ({
-    statusActions: [
-      // TODO: Do we need this? Just the discard action should be allowed here
-      {
-        name: "Discard",
-        key: "Discarded",
-        class: "discard",
-      },
-    ],
-  }),
   computed: {
     open: {
       get: function () {
@@ -138,6 +124,7 @@ export default {
     right: 0.9em;
   }
 }
+
 .extra-actions {
   position: relative;
   &__button {
@@ -157,10 +144,11 @@ export default {
     z-index: 1;
     .disabled {
       pointer-events: none;
+      opacity: 0.7;
     }
     div {
       padding: 0.5em;
-      color: $font-secondary-dark;
+      color: $font-secondary-medium-dark;
       cursor: pointer;
       display: block;
       background: white;
@@ -175,7 +163,7 @@ export default {
       }
       &:hover {
         transition: background 0.3s ease-in-out;
-        background: palette(grey, bg);
+        background: palette(grey, 800);
       }
     }
   }

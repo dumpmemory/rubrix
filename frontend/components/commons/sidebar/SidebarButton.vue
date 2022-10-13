@@ -12,11 +12,11 @@
 
 <script>
 import "assets/icons/refresh";
-import "assets/icons/explore-view";
-import "assets/icons/annotate-view";
-import "assets/icons/labelling-rules-view";
+import "assets/icons/exploration";
+import "assets/icons/hand-labeling";
+import "assets/icons/weak-labeling";
 import "assets/icons/progress";
-import "assets/icons/metrics";
+import "assets/icons/stats";
 export default {
   props: {
     activeView: {
@@ -47,7 +47,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-$color: #333346;
 .sidebar-button {
   &__icon-help {
     left: 5px;
@@ -60,7 +59,7 @@ $color: #333346;
   &.mode {
     &:hover {
       .svg-icon {
-        background: palette(grey, smooth);
+        background: palette(grey, 600);
         border-radius: $border-radius;
       }
     }
@@ -68,7 +67,7 @@ $color: #333346;
   &.active {
     &.mode {
       .svg-icon {
-        background: palette(grey, smooth);
+        background: palette(grey, 600);
         border-radius: $border-radius;
       }
     }
@@ -86,7 +85,7 @@ $color: #333346;
         position: absolute;
         left: 0;
         top: 0;
-        background: $color;
+        background: palette(grey, 100);
       }
     }
   }
@@ -95,9 +94,9 @@ $color: #333346;
   display: block;
   text-align: center;
   margin: auto;
-  width: 24px;
-  height: 24px;
-  fill: $color;
+  width: 28px;
+  height: 28px;
+  fill: palette(grey, 100);
   padding: 0.5em;
   box-sizing: content-box;
   margin-bottom: 0.5em;

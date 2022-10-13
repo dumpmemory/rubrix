@@ -16,20 +16,20 @@
   -->
 
 <template>
-  <div class="filter__row">
+  <div :class="[appliedFilters.length ? 'selected' : '', 'filter__row']">
     <svgicon
       v-if="appliedFilters.length"
       title="remove field"
       class="filter__remove-button"
-      name="cross"
+      name="close"
       width="14"
       height="14"
       @click="onRemove()"
     />
     <p class="filter__label" :title="filter.name">{{ filter.name }}:</p>
-    <FilterDropdown
+    <filter-dropdown
+      color-type="grey"
       :class="{ highlighted: visible || appliedFilters.length }"
-      class="dropdown--filter"
       :visible="visible"
       @visibility="onVisibility"
     >
@@ -49,51 +49,24 @@
         </span>
       </span>
       <div slot="dropdown-content" v-if="visible">
-        <input
-          v-model="searchText"
-          class="filter-options"
-          type="text"
-          autofocus
-          :placeholder="placeholder"
+        <select-options-search v-model="searchText" />
+        <select-options
+          ref="options"
+          type="multiple"
+          v-model="selectedOptions"
+          :options="filterOptions(filter.options, searchText)"
+          :option-name="optionName"
+          :option-counter="optionCounter"
+          :option-value="optionName"
         />
-        <ul>
-          <li
-            v-for="(recordsCounter, optionName) in filterOptions(
-              filter.options,
-              searchText
-            )"
-            :key="optionName.index"
-          >
-            <ReCheckbox
-              :id="optionName"
-              v-model="selectedOptions"
-              class="re-checkbox--dark"
-              :value="optionName"
-            >
-              {{ optionName }} ({{ recordsCounter | formatNumber }})
-            </ReCheckbox>
-          </li>
-          <li
-            v-if="
-              !Object.entries(filterOptions(filter.options, searchText)).length
-            "
-          >
-            0 results
-          </li>
-        </ul>
         <div class="filter__buttons">
-          <ReButton
-            class="button-tertiary--small button-tertiary--outline"
-            @click="onCancel"
-          >
+          <base-button class="primary outline" @click="onCancel">
             Cancel
-          </ReButton>
-          <ReButton class="button-primary--small" @click="onApply">
-            Filter
-          </ReButton>
+          </base-button>
+          <base-button class="primary" @click="onApply"> Filter </base-button>
         </div>
       </div>
-    </FilterDropdown>
+    </filter-dropdown>
   </div>
 </template>
 
@@ -159,32 +132,33 @@ export default {
       this.selectedOptions = this.appliedFilters;
     },
     filterOptions(options, text) {
+      const sortedOptions = Object.entries(options).sort((a, b) => b[1] - a[1]);
       if (text === undefined) {
-        return options;
+        return sortedOptions;
       }
-      let filtered = Object.fromEntries(
-        Object.entries(options).filter(([id]) =>
-          id.toLowerCase().match(text.toLowerCase())
-        )
+      let filtered = sortedOptions.filter(([id]) =>
+        id.toLowerCase().match(text.toLowerCase())
       );
       return filtered;
+    },
+    optionName(option) {
+      return option[0];
+    },
+    optionCounter(option) {
+      return option[1];
     },
   },
 };
 </script>
 
 <style lang="scss" scoped>
-.highlight-text {
-  display: inline-block;
-  // font-weight: 600;
-  background: #ffbf00;
-  line-height: 16px;
-}
-
 .filter {
   &__row {
     display: flex;
     align-items: center;
+    &:not(.selected) {
+      margin-left: 2em;
+    }
     .dropdown {
       margin-right: 0;
       margin-left: auto;
@@ -204,107 +178,18 @@ export default {
     text-align: right;
     display: flex;
     & > * {
-      display: block !important;
       width: 100%;
-      margin-right: 0.5em;
-      min-height: 38px;
+      justify-content: center;
       &:last-child {
-        margin-right: 0;
+        margin-left: $base-space;
       }
     }
   }
   &__remove-button {
-    position: absolute;
-    left: 20px;
+    position: relative;
     margin-right: 1em;
     cursor: pointer;
-  }
-}
-
-.dropdown {
-  &__placeholder {
-    display: none;
-    .dropdown--open & {
-      display: block;
-    }
-  }
-  &__selectables {
-    vertical-align: middle;
-    .dropdown--open & {
-      visibility: hidden;
-    }
-    & + .dropdown__selectables {
-      &:before {
-        content: ",  ";
-        margin-right: 2px;
-      }
-      &:after {
-        content: "...";
-        margin-left: -2px;
-      }
-    }
-  }
-}
-.filter-options {
-  &__back {
-    color: $primary-color;
-    margin-top: 1em;
-    display: flex;
-    align-items: center;
-    &__chev {
-      cursor: pointer;
-      margin-right: 1em;
-      padding: 0.5em;
-      &:after {
-        content: "";
-        border-color: $primary-color;
-        border-style: solid;
-        border-width: 1px 1px 0 0;
-        display: inline-block;
-        height: 8px;
-        width: 8px;
-        transform: rotate(-135deg);
-        transition: all 1.5s ease;
-        margin-bottom: 2px;
-        margin-left: auto;
-        margin-right: 0;
-      }
-    }
-  }
-  &__button {
-    display: flex;
-    cursor: pointer;
-    min-width: 135px;
-    transition: min-width 0.2s ease;
-    &.active {
-      min-width: 270px;
-      transition: min-width 0.2s ease;
-    }
-    &.hidden {
-      opacity: 0;
-    }
-  }
-  &__chev {
-    padding-left: 2em;
-    margin-right: 0;
-    margin-left: auto;
-    background: none;
-    border: none;
-    outline: none;
-    &:after {
-      content: "";
-      border-color: #4a4a4a;
-      border-style: solid;
-      border-width: 1px 1px 0 0;
-      display: inline-block;
-      height: 8px;
-      width: 8px;
-      transform: rotate(43deg);
-      transition: all 1.5s ease;
-      margin-bottom: 2px;
-      margin-left: auto;
-      margin-right: 0;
-    }
+    flex-shrink: 0;
   }
 }
 </style>

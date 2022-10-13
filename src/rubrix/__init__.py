@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING as _TYPE_CHECKING
 from rubrix.logging import configure_logging as _configure_logging
 
 from . import _version
-from .utils import _LazyRubrixModule
+from .utils import LazyRubrixModule as _LazyRubrixModule
 
 __version__ = _version.version
 
@@ -32,6 +32,7 @@ if _TYPE_CHECKING:
     from rubrix.client.api import (
         copy,
         delete,
+        delete_records,
         get_workspace,
         init,
         load,
@@ -57,9 +58,11 @@ if _TYPE_CHECKING:
         TokenClassificationSettings,
         configure_dataset,
     )
+    from rubrix.listeners import Metrics, RBListenerContext, Search, listener
     from rubrix.monitoring.model_monitor import monitor
     from rubrix.server.server import app
 
+# TODO: remove me
 _import_structure = {
     "client.api": [
         "copy",
@@ -67,6 +70,7 @@ _import_structure = {
         "get_workspace",
         "init",
         "load",
+        "delete_records",
         "log",
         "log_async",
         "set_workspace",
@@ -85,6 +89,7 @@ _import_structure = {
         "read_pandas",
     ],
     "monitoring.model_monitor": ["monitor"],
+    "listeners.listener": ["listener", "RBListenerContext", "Search", "Metrics"],
     "datasets": [
         "configure_dataset",
         "TextClassificationSettings",

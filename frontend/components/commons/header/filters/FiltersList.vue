@@ -25,7 +25,7 @@
           }"
           @click="selectGroup(group)"
         >
-          <svgicon v-if="group === 'Sort'" name="sort" width="14" height="14" />
+          <svgicon v-if="group === 'Sort'" name="sort" width="18" height="18" />
           {{ group }}
           <span v-if="itemsAppliedOnGroup(group)"
             >({{ itemsAppliedOnGroup(group) }})</span
@@ -35,54 +35,59 @@
           v-if="initialVisibleGroup === group"
           :class="[
             'filters__list__content',
-            searchableFilterList.filter((f) => f.group === group).length > 6
-              ? 'filters__list__content--large'
-              : '',
+            ,
             group === 'Sort' ? 'filters__list__content--sort' : null,
           ]"
         >
-          <span
-            v-for="filter in searchableFilterList.filter(
-              (f) => f.group === group
-            )"
-            :key="filter.id"
+          <div
+            :class="
+              searchableFilterList.filter((f) => f.group === group).length > 6
+                ? 'filters--scrollable'
+                : ''
+            "
           >
-            <lazy-select-filter
-              v-if="filter.type === 'select'"
-              class="filter"
-              :filter="filter"
-              @apply="onApply"
+            <span
+              v-for="filter in searchableFilterList.filter(
+                (f) => f.group === group
+              )"
+              :key="filter.id"
+            >
+              <lazy-select-filter
+                v-if="filter.type === 'select'"
+                class="filter"
+                :filter="filter"
+                @apply="onApply"
+              />
+              <lazy-filter-score
+                v-else-if="filter.type === 'score'"
+                class="filter"
+                :filter="filter"
+                @apply="onApply"
+              />
+              <lazy-filter-uncovered-by-rules
+                v-else-if="showUncoveredByRulesFilter"
+                class="filter"
+                :filter="filter"
+                :dataset="dataset"
+                @apply="onApply"
+              />
+            </span>
+            <lazy-sort-list
+              v-if="initialVisibleGroup === 'Sort'"
+              :sort-options="filterList"
+              :sort="dataset.sort"
+              @closeSort="close"
+              @sortBy="onSortBy"
             />
-            <lazy-filter-score
-              v-else-if="filter.type === 'score'"
-              class="filter"
-              :filter="filter"
-              @apply="onApply"
-            />
-            <lazy-filter-uncovered-by-rules
-              v-else-if="showUncoveredByRulesFilter"
-              class="filter"
-              :filter="filter"
-              :dataset="dataset"
-              @apply="onApply"
-            />
-          </span>
-          <a
+          </div>
+          <base-button
             v-if="
               initialVisibleGroup !== 'Sort' && itemsAppliedOnGroup(group) > 1
             "
-            class="filters__list__button"
-            href="#"
-            @click.prevent="removeFiltersByGroup(group)"
-            >Remove all filters</a
+            class="filters__list__button link"
+            @click="removeFiltersByGroup(group)"
+            >Remove all filters</base-button
           >
-          <lazy-sort-list
-            v-if="initialVisibleGroup === 'Sort'"
-            :sort-options="filterList"
-            :sort="dataset.sort"
-            @closeSort="close"
-            @sortBy="onSortBy"
-          />
         </div>
       </div>
     </div>
@@ -228,6 +233,7 @@ export default {
         id: "uncovered_by_rules",
         key: "uncovered_by_rules",
         group: "Annotations",
+        name: "Uncovered by rules",
         options: [true, false],
         selected:
           this.dataset.query.uncovered_by_rules &&
@@ -297,10 +303,9 @@ $number-size: 18px;
       position: absolute;
       top: calc(100% + 10px);
       box-shadow: $shadow;
-      background: $lighter-color;
-      padding: 20px 20px 10px 4em;
+      background: palette(white);
+      padding: 20px 20px 10px 20px;
       border-radius: $border-radius;
-      max-height: 550px;
       z-index: 2;
       @include media(">desktop") {
         left: 0;
@@ -309,28 +314,13 @@ $number-size: 18px;
       &--sort {
         max-width: 410px;
       }
-      &--large {
-        // width: 910px;
-        max-height: 80vh;
-        overflow: auto;
-      }
     }
     &__item {
       position: relative;
       flex-shrink: 0;
     }
-    &__sort {
-      svg {
-        margin-right: 0.3em;
-      }
-    }
     &__button {
-      color: $font-secondary;
-      @include font-size(13px);
-      text-decoration: none;
-      margin-bottom: 10px;
-      display: block;
-      font-weight: 600;
+      margin: 2em auto 1em 2em;
     }
     p {
       cursor: pointer;
@@ -339,22 +329,34 @@ $number-size: 18px;
       margin-top: 0;
       padding: 0.8em;
       border-radius: $border-radius;
-      margin-right: 10px;
-      color: $font-secondary;
+      margin-right: $base-space;
+      color: $font-secondary-medium;
       @include font-size(15px);
       font-family: $sff;
       white-space: nowrap;
       @include media(">desktop") {
         padding: 0.8em 1em;
-        margin-right: 15px;
+        margin-right: $base-space * 2;
       }
       &:hover {
-        background: palette(grey, smooth);
+        background: palette(grey, 600);
       }
       &.active {
-        background: palette(grey, smooth);
+        background: palette(grey, 600);
         color: $primary-color;
       }
+    }
+  }
+  :deep(.filters--scrollable) {
+    max-height: 312px;
+    overflow: auto;
+    @extend %hide-scrollbar;
+    margin-top: -20px;
+    margin-bottom: -10px;
+    padding-top: 20px;
+    padding-bottom: 10px;
+    .dropdown {
+      position: static;
     }
   }
 }

@@ -18,7 +18,7 @@ from typing import List, Optional, Union
 import httpx
 
 from rubrix.client.sdk.client import AuthenticatedClient
-from rubrix.client.sdk.commons.api import build_data_response
+from rubrix.client.sdk.commons.api import build_data_response, build_param_dict
 from rubrix.client.sdk.commons.models import ErrorMessage, HTTPValidationError, Response
 from rubrix.client.sdk.token_classification.models import (
     TokenClassificationQuery,
@@ -31,20 +31,18 @@ def data(
     name: str,
     request: Optional[TokenClassificationQuery] = None,
     limit: Optional[int] = None,
+    id_from: Optional[str] = None,
 ) -> Response[
     Union[List[TokenClassificationRecord], HTTPValidationError, ErrorMessage]
 ]:
-    url = "{}/api/datasets/{name}/TokenClassification/data".format(
-        client.base_url, name=name
-    )
 
-    with httpx.stream(
+    path = f"/api/datasets/{name}/TokenClassification/data"
+    params = build_param_dict(id_from, limit)
+
+    with client.stream(
+        path=path,
         method="POST",
-        url=url,
-        headers=client.get_headers(),
-        cookies=client.get_cookies(),
-        timeout=None,
-        params={"limit": limit} if limit else None,
+        params=params if params else None,
         json=request.dict() if request else {},
     ) as response:
         return build_data_response(

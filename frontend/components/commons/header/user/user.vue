@@ -11,10 +11,10 @@
         href="https://docs.rubrix.ml/en/stable/"
         target="_blank"
       >
-        <svgicon name="docs"></svgicon> View docs
+        <svgicon width="16" height="16" name="external"></svgicon> View docs
       </a>
       <a class="user__link" href="#" @click.prevent="logout">
-        <svgicon name="logout"></svgicon> Log out
+        <svgicon width="16" heigth="16" name="log-out"></svgicon> Log out
       </a>
       <span class="copyright">© 2022 Rubrix ({{ rubrixVersion }})</span>
     </div>
@@ -23,8 +23,8 @@
 
 <script>
 import { mapActions } from "vuex";
-import "assets/icons/docs";
-import "assets/icons/logout";
+import "assets/icons/external";
+import "assets/icons/log-out";
 export default {
   data: () => {
     return {
@@ -80,7 +80,7 @@ $buttonSize: 34px;
   z-index: 3;
   &__button {
     @extend %circle;
-    background: $lighter-color;
+    background: palette(white);
     transform: scale3d(1, 1, 1) translateZ(0);
     transition: all 0.2s ease-in-out;
     color: $primary-color;
@@ -95,11 +95,11 @@ $buttonSize: 34px;
     top: 3.5em;
     right: -0.5em;
     padding-top: 1.5em;
-    background: $lighter-color;
-    border-radius: 5px;
+    background: palette(white);
+    border-radius: $border-radius;
     @include font-size(14px);
     font-weight: 400;
-    color: palette(grey, medium);
+    color: $font-medium;
     box-shadow: $shadow;
     min-width: 300px;
     &:after {
@@ -113,7 +113,7 @@ $buttonSize: 34px;
     }
   }
   &__name {
-    color: palette(grey, dark);
+    color: $font-dark;
     @include font-size(16px);
     margin: 0 1.5em 0.3em 1.5em;
     font-weight: 600;
@@ -124,8 +124,14 @@ $buttonSize: 34px;
   &__link {
     display: flex;
     align-items: center;
-    color: palette(grey, medium);
+    color: $font-medium;
     margin: 0.5em 1.5em 1.5em 1.5em;
+    &:hover {
+      color: darken($font-medium, 10%);
+      .svg-icon {
+        fill: darken($font-medium, 10%);
+      }
+    }
     .svg-icon {
       margin-right: 0.5em;
     }
@@ -135,13 +141,13 @@ $buttonSize: 34px;
   display: block;
   @include font-size(11px);
   font-weight: 400;
-  color: palette(grey, dark);
+  color: $font-dark;
   line-height: 1em;
   margin-top: 1.5em;
   padding: 1em;
-  background: #fcfcfc;
+  background: palette(grey, 800);
   text-align: right;
-  border-bottom-right-radius: 5px;
-  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: $border-radius;
+  border-bottom-left-radius: $border-radius;
 }
 </style>

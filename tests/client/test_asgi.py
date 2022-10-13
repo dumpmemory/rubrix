@@ -100,8 +100,8 @@ def test_rubrix_middleware_for_token_classification(monkeypatch):
         return JSONResponse(
             content=[
                 [
-                    {"label": "fawn", "start": 1, "end": 10},
-                    {"label": "fobis", "start": 12, "end": 14},
+                    {"label": "fawn", "start": 0, "end": 3},
+                    {"label": "fobis", "start": 4, "end": 8},
                 ],
                 [],
             ]
@@ -123,7 +123,7 @@ def test_rubrix_middleware_for_token_classification(monkeypatch):
 
     mock.post(
         expected_endpoint,
-        json=[{"text": "The main text data"}, {"text": "The main text data"}],
+        json=[{"text": "The main text data"}, "The main text data"],
     )
     time.sleep(0.2)
     assert mock_log.was_called

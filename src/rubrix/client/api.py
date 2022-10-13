@@ -16,12 +16,12 @@ import asyncio
 import logging
 import os
 import re
+import warnings
 from asyncio import Future
 from functools import wraps
 from inspect import signature
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
-import pandas
 from tqdm.auto import tqdm
 
 from rubrix._constants import (
@@ -30,6 +30,8 @@ from rubrix._constants import (
     RUBRIX_WORKSPACE_HEADER_NAME,
 )
 from rubrix.client.apis.datasets import Datasets
+from rubrix.client.apis.metrics import MetricsAPI
+from rubrix.client.apis.searches import Searches
 from rubrix.client.datasets import (
     Dataset,
     DatasetForText2Text,
@@ -45,7 +47,7 @@ from rubrix.client.models import (
     TokenClassificationRecord,
 )
 from rubrix.client.sdk.client import AuthenticatedClient
-from rubrix.client.sdk.commons.api import async_bulk, bulk
+from rubrix.client.sdk.commons.api import async_bulk
 from rubrix.client.sdk.commons.errors import RubrixClientError
 from rubrix.client.sdk.datasets import api as datasets_api
 from rubrix.client.sdk.datasets.models import CopyDatasetRequest, TaskType
@@ -71,12 +73,11 @@ from rubrix.client.sdk.token_classification.models import (
     TokenClassificationBulkData,
     TokenClassificationQuery,
 )
-from rubrix.client.sdk.users.api import whoami
+from rubrix.client.sdk.users import api as users_api
 from rubrix.client.sdk.users.models import User
 from rubrix.utils import setup_loop_in_thread
 
 _LOGGER = logging.getLogger(__name__)
-_WARNED_ABOUT_AS_PANDAS = False
 
 
 class _RubrixLogAgent:
@@ -101,12 +102,6 @@ class _RubrixLogAgent:
             self.__log_internal__(self.__api__, *args, **kwargs), self.__loop__
         )
 
-    def __del__(self):
-        self.__loop__.stop()
-
-        del self.__loop__
-        del self.__thread__
-
 
 class Api:
     # Larger sizes will trigger a warning
@@ -118,6 +113,7 @@ class Api:
         api_key: Optional[str] = None,
         workspace: Optional[str] = None,
         timeout: int = 60,
+        extra_headers: Optional[Dict[str, str]] = None,
     ):
         """Init the Python client.
 
@@ -132,26 +128,42 @@ class Api:
             workspace: The workspace to which records will be logged/loaded. If `None` (default) and the
                 env variable ``RUBRIX_WORKSPACE`` is not set, it will default to the private user workspace.
             timeout: Wait `timeout` seconds for the connection to timeout. Default: 60.
+            extra_headers: Extra HTTP headers sent to the server. You can use this to customize
+                the headers of Rubrix client requests, like additional security restrictions. Default: `None`.
 
         Examples:
             >>> import rubrix as rb
             >>> rb.init(api_url="http://localhost:9090", api_key="4AkeAPIk3Y")
+            >>> # Customizing request headers
+            >>> headers = {"X-Client-id":"id","X-Secret":"secret"}
+            >>> rb.init(api_url="http://localhost:9090", api_key="4AkeAPIk3Y", extra_headers=headers)
+
         """
         api_url = api_url or os.getenv("RUBRIX_API_URL", "http://localhost:6900")
         # Checking that the api_url does not end in '/'
         api_url = re.sub(r"\/$", "", api_url)
         api_key = api_key or os.getenv("RUBRIX_API_KEY", DEFAULT_API_KEY)
         workspace = workspace or os.getenv("RUBRIX_WORKSPACE")
+        headers = extra_headers or {}
 
         self._client: AuthenticatedClient = AuthenticatedClient(
-            base_url=api_url, token=api_key, timeout=timeout
+            base_url=api_url,
+            token=api_key,
+            timeout=timeout,
+            headers=headers.copy(),
         )
-        self._user: User = whoami(client=self._client)
 
+        self._user: User = users_api.whoami(client=self._client)
         if workspace is not None:
             self.set_workspace(workspace)
 
         self._agent = _RubrixLogAgent(self)
+
+    def __del__(self):
+        if hasattr(self, "_client"):
+            del self._client
+        if hasattr(self, "_agent"):
+            del self._agent
 
     @property
     def client(self):
@@ -161,6 +173,14 @@ class Api:
     @property
     def datasets(self) -> Datasets:
         return Datasets(client=self._client)
+
+    @property
+    def searches(self):
+        return Searches(client=self._client)
+
+    @property
+    def metrics(self):
+        return MetricsAPI(client=self.client)
 
     def set_workspace(self, workspace: str):
         """Sets the active workspace.
@@ -204,14 +224,11 @@ class Api:
             >>> rb.copy("my_dataset", name_of_copy="new_dataset")
             >>> rb.load("new_dataset")
         """
-        response = datasets_api.copy_dataset(
+        datasets_api.copy_dataset(
             client=self._client,
             name=dataset,
             json_body=CopyDatasetRequest(name=name_of_copy, target_workspace=workspace),
         )
-
-        if response.status_code == 409:
-            raise RuntimeError(f"A dataset with name '{name_of_copy}' already exists.")
 
     def delete(self, name: str) -> None:
         """Deletes a dataset.
@@ -277,7 +294,11 @@ class Api:
         )
         if background:
             return future
-        return future.result()
+
+        try:
+            return future.result()
+        finally:
+            future.cancel()
 
     async def log_async(
         self,
@@ -391,32 +412,112 @@ class Api:
         # Creating a composite BulkResponse with the total processed and failed
         return BulkResponse(dataset=name, processed=processed, failed=failed)
 
+    def delete_records(
+        self,
+        name: str,
+        query: Optional[str] = None,
+        ids: Optional[List[Union[str, int]]] = None,
+        discard_only: bool = False,
+        discard_when_forbidden: bool = True,
+    ) -> Tuple[int, int]:
+        """Delete records from a Rubrix dataset.
+
+        Args:
+            name: The dataset name.
+            query: An ElasticSearch query with the `query string syntax
+                <https://rubrix.readthedocs.io/en/stable/guides/queries.html>`_
+            ids: If provided, deletes dataset records with given ids.
+            discard_only: If `True`, matched records won't be deleted. Instead, they will be marked as `Discarded`
+            discard_when_forbidden: Only super-user or dataset creator can delete records from a dataset.
+                So, running "hard" deletion for other users will raise an `ForbiddenApiError` error.
+                If this parameter is `True`, the client API will automatically try to mark as ``Discarded``
+                records instead. Default, `True`
+
+        Returns:
+            The total of matched records and real number of processed errors. These numbers could not
+            be the same if some data conflicts are found during operations (some matched records change during
+            deletion).
+
+        Examples:
+            >>> ## Delete by id
+            >>> import rubrix as rb
+            >>> rb.delete_records(name="example-dataset", ids=[1,3,5])
+            >>> ## Discard records by query
+            >>> import rubrix as rb
+            >>> rb.delete_records(name="example-dataset", query="metadata.code=33", discard_only=True)
+        """
+        return self.datasets.delete_records(
+            name=name,
+            query=query,
+            ids=ids,
+            mark_as_discarded=discard_only,
+            discard_when_forbidden=discard_when_forbidden,
+        )
+
     def load(
         self,
         name: str,
         query: Optional[str] = None,
         ids: Optional[List[Union[str, int]]] = None,
         limit: Optional[int] = None,
-        as_pandas: bool = True,
-    ) -> Union[pandas.DataFrame, Dataset]:
-        """Loads a dataset as a pandas DataFrame or a Dataset.
+        id_from: Optional[str] = None,
+        as_pandas=None,
+    ) -> Dataset:
+        """Loads a Rubrix dataset.
 
-        Args:
-            name: The dataset name.
-            query: An ElasticSearch query with the
+        Parameters:
+        -----------
+            name:
+                The dataset name.
+            query:
+                An ElasticSearch query with the
                 `query string syntax <https://rubrix.readthedocs.io/en/stable/guides/queries.html>`_
-            ids: If provided, load dataset records with given ids.
-            limit: The number of records to retrieve.
-            as_pandas: If True, return a pandas DataFrame. If False, return a Dataset.
+            ids:
+                If provided, load dataset records with given ids.
+            limit:
+                The number of records to retrieve.
+
+            id_from:
+                If provided, starts gathering the records starting from that Record. As the Records returned with the
+                load method are sorted by ID, ´id_from´ can be used to load using batches.
+
+            as_pandas:
+                DEPRECATED! To get a pandas DataFrame do ``rb.load('my_dataset').to_pandas()``.
 
         Returns:
-            The dataset as a pandas Dataframe or a Dataset.
+        --------
+            A Rubrix dataset.
 
         Examples:
+            **Basic Loading**: load the samples sorted by their ID
             >>> import rubrix as rb
-            >>> dataframe = rb.load(name="example-dataset")
             >>> dataset = rb.load(name="example-dataset")
+
+            **Iterate over a large dataset:**
+                When dealing with a large dataset you might want to load it in batches to optimize memory consumption
+                and avoid network timeouts. To that end, a simple batch-iteration over the whole database can be done
+                employing the `from_id` parameter. This parameter will act as a delimiter, retrieving the N items after
+                the given id, where N is determined by the `limit` parameter. **NOTE** If
+                no `limit` is given the whole dataset after that ID will be retrieved.
+
+            >>> import rubrix as rb
+            >>> dataset_batch_1 = rb.load(name="example-dataset", limit=1000)
+            >>> dataset_batch_2 = rb.load(name="example-dataset", limit=1000, id_from=dataset_batch_1[-1].id)
+
         """
+        if as_pandas is False:
+            warnings.warn(
+                "The argument `as_pandas` is deprecated and will be removed in a future version. "
+                "Please adapt your code accordingly. ",
+                FutureWarning,
+            )
+        elif as_pandas is True:
+            raise ValueError(
+                "The argument `as_pandas` is deprecated and will be removed in a future version. "
+                "Please adapt your code accordingly. ",
+                "If you want a pandas DataFrame do `rb.load('my_dataset').to_pandas()`.",
+            )
+
         response = datasets_api.get_dataset(client=self._client, name=name)
         task = response.parsed.task
 
@@ -450,6 +551,7 @@ class Api:
             name=name,
             request=request_class(ids=ids, query_text=query),
             limit=limit,
+            id_from=id_from,
         )
 
         records = [sdk_record.to_client() for sdk_record in response.parsed]
@@ -459,19 +561,7 @@ class Api:
         except TypeError:
             records_sorted_by_id = sorted(records, key=lambda x: str(x.id))
 
-        dataset = dataset_class(records_sorted_by_id)
-
-        global _WARNED_ABOUT_AS_PANDAS
-        if not _WARNED_ABOUT_AS_PANDAS:
-            _LOGGER.warning(
-                "The argument 'as_pandas' in `rb.load` will be deprecated in the future, and we will always return a `Dataset`. "
-                "To emulate the future behavior set `as_pandas=False`. To get a pandas DataFrame, call `Dataset.to_pandas()`"
-            )
-            _WARNED_ABOUT_AS_PANDAS = True
-
-        if as_pandas:
-            return dataset.to_pandas()
-        return dataset
+        return dataset_class(records_sorted_by_id)
 
     def dataset_metrics(self, name: str) -> List[MetricInfo]:
         response = datasets_api.get_dataset(self._client, name)
@@ -610,6 +700,11 @@ def log_async(*args, **kwargs):
 @api_wrapper(Api.load)
 def load(*args, **kwargs):
     return active_api().load(*args, **kwargs)
+
+
+@api_wrapper(Api.delete_records)
+def delete_records(*args, **kwargs):
+    return active_api().delete_records(*args, **kwargs)
 
 
 class InputValueError(RubrixClientError):

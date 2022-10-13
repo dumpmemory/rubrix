@@ -20,7 +20,7 @@
     <div
       :class="[
         'content',
-        hasAnnotationAndPredictions ? 'content--separator' : null,
+        'content--separator',
         !annotationEnabled
           ? 'content--exploration-mode'
           : 'content--annotation-mode',
@@ -48,29 +48,28 @@
           />
           <div class="content__footer">
             <div class="content__actions-buttons">
-              <re-button
+              <base-button
                 v-if="visibleSentence && annotationEnabled"
-                class="button-primary"
+                class="primary"
                 @click="onAnnotate(visibleSentence)"
-                >Validate</re-button
+                >Validate</base-button
               >
             </div>
           </div>
         </div>
 
-        <span
-          v-for="(sentence, index) in sentences"
-          v-else
-          :key="sentence.text"
-        >
+        <span v-for="(sentence, index) in sentences" v-else :key="index">
           <div v-if="itemNumber === index" class="content__sentences">
             <div class="content__group">
               <p v-if="!editionMode" class="content__sentences__title">
-                {{ sentencesOrigin }}
+                {{ sentencesOrigin
+                }}<span v-if="showScore" class="content__score"
+                  >: {{ sentence.score | percent }}
+                </span>
               </p>
-              <re-button
+              <base-button
                 v-if="hasAnnotationAndPredictions && !editionMode"
-                class="button-clear"
+                class="primary clear small content__group__view-annotations"
                 @click="changeVisibleSentences"
                 >{{
                   sentencesOrigin === "Annotation"
@@ -80,7 +79,7 @@
                     : annotationEnabled
                     ? "Back to annotation"
                     : "View annotation"
-                }}</re-button
+                }}</base-button
               >
             </div>
             <text-2-text-content-editable
@@ -96,58 +95,33 @@
             />
             <div v-if="!editionMode" class="content__footer">
               <template v-if="sentencesOrigin === 'Prediction'">
-                <div v-if="showScore" class="content__score">
-                  Score: {{ sentence.score | percent }}
-                </div>
-                <div v-if="sentences.length" class="content__nav-buttons">
-                  <a
-                    :class="itemNumber <= 0 ? 'disabled' : null"
-                    href="#"
-                    @click.prevent="showitemNumber(--itemNumber)"
+                <div v-if="annotationEnabled" class="content__actions-buttons">
+                  <base-button
+                    v-if="allowValidation"
+                    class="primary small"
+                    @click="onAnnotate(visibleSentence)"
+                    >Validate</base-button
                   >
-                    <svgicon
-                      name="chev-left"
-                      width="8"
-                      height="8"
-                      color="#4C4EA3"
-                    />
-                  </a>
-                  {{ itemNumber + 1 }} of {{ sentences.length }} predictions
-                  <a
-                    :class="
-                      sentences.length <= itemNumber + 1 ? 'disabled' : null
-                    "
-                    href="#"
-                    @click.prevent="showitemNumber(++itemNumber)"
+                  <base-button
+                    v-if="sentences.length"
+                    :class="[
+                      'edit',
+                      'primary',
+                      'small',
+                      { outline: allowValidation },
+                    ]"
+                    @click="edit"
+                    >Edit</base-button
                   >
-                    <svgicon
-                      name="chev-right"
-                      width="8"
-                      height="8"
-                      color="#4C4EA3"
-                    />
-                  </a>
                 </div>
-              </template>
-              <div v-if="annotationEnabled" class="content__actions-buttons">
-                <re-button
+                <base-slider
                   v-if="sentences.length"
-                  :class="[
-                    'edit',
-                    allowValidation
-                      ? 'button-primary--outline'
-                      : 'button-primary',
-                  ]"
-                  @click="edit"
-                  >Edit</re-button
-                >
-                <re-button
-                  v-if="allowValidation"
-                  class="button-primary"
-                  @click="onAnnotate(visibleSentence)"
-                  >Validate</re-button
-                >
-              </div>
+                  :slides-origin="sentences"
+                  :item-number="itemNumber"
+                  slides-name="predictions"
+                  @go-to="showItemNumber"
+                />
+              </template>
             </div>
           </div>
         </span>
@@ -157,7 +131,6 @@
 </template>
 
 <script>
-import "assets/icons/pencil";
 import { IdState } from "vue-virtual-scroller";
 import { mapActions } from "vuex";
 
@@ -316,7 +289,7 @@ export default {
     ...mapActions({
       updateRecords: "entities/datasets/updateDatasetRecords",
     }),
-    async showitemNumber(index) {
+    async showItemNumber(index) {
       this.itemNumber = index;
       await (this.visibleSentence = this.selectedSentence);
     },
@@ -400,21 +373,21 @@ export default {
   &--separator {
     padding-top: 1em;
     &:before {
+      width: 100%;
       content: "";
-      border-top: 1px solid palette(grey, light);
-      width: calc(100% - 200px);
+      border-top: 1px solid palette(grey, 700);
       position: absolute;
       top: 0;
     }
   }
   &--editable {
     width: 100%;
-    ::v-deep p {
+    :deep(p) {
       padding: 0.6em;
       margin: 0;
       outline: none;
     }
-    ::v-deep .re-button {
+    :deep(.button) {
       opacity: 1 !important;
     }
   }
@@ -437,15 +410,15 @@ export default {
     min-height: 140px;
     &__title {
       @include font-size(13px);
-      color: palette(grey, medium);
+      color: $font-medium;
       margin: 0;
     }
   }
   &__score {
-    @include font-size(13px);
+    @include font-size(15px);
     margin-right: 0;
     min-width: 33%;
-    color: palette(grey, medium);
+    color: $font-medium;
   }
   &__footer {
     padding-top: 2em;
@@ -455,71 +428,25 @@ export default {
     align-items: center;
   }
   &__group {
-    width: calc(100% - 200px);
     display: flex;
     align-items: center;
     margin-bottom: 0.5em;
-    .button-clear {
-      @include font-size(13px);
+    &__view-annotations {
       margin: auto 0 auto auto;
-      color: palette(grey, dark);
-      transition: opacity 0.3s ease-in-out 0.2s;
-      &:hover {
-        color: darken(palette(grey, dark), 10%);
-      }
     }
   }
   &__actions-buttons {
-    margin-right: 0;
-    margin-left: auto;
+    margin-right: auto;
+    margin-left: 0;
     display: flex;
     .edit {
       opacity: 0;
       pointer-events: none;
     }
-    .re-button {
-      min-height: 32px;
-      line-height: 32px;
-      display: block;
-      margin-bottom: 0;
-      margin-right: 0;
+    .button {
       margin-left: auto;
-      & + .re-button {
-        margin-left: 6px;
-      }
-    }
-  }
-  &__nav-buttons {
-    @include font-size(13px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 33%;
-    margin-right: auto;
-    margin-left: 0;
-    color: palette(grey, medium);
-    a {
-      height: 20px;
-      width: 20px;
-      line-height: 19px;
-      text-align: center;
-      border-radius: 3px;
-      text-align: center;
-      margin-left: 1.5em;
-      margin-right: 1.5em;
-      display: inline-block;
-      text-decoration: none;
-      outline: none;
-      @include font-size(13px);
-      background: transparent;
-      transition: all 0.2s ease-in-out;
-      &:hover {
-        background: palette(grey, bg);
-        transition: all 0.2s ease-in-out;
-      }
-      &.disabled {
-        opacity: 0;
-        pointer-events: none;
+      & + .button {
+        margin-left: $base-space;
       }
     }
   }

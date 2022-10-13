@@ -1,3 +1,17 @@
+#  Copyright 2021-present, the Recognai S.L. team.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 import pytest
 
 import rubrix
@@ -12,7 +26,9 @@ def test_log_with_empty_text(mocked_client):
     text = " "
 
     rubrix.delete(dataset)
-    with pytest.raises(Exception, match="No text or empty text provided"):
+    with pytest.raises(
+        Exception, match="The provided `text` contains only whitespaces."
+    ):
         rubrix.log(
             TokenClassificationRecord(id=0, text=text, tokens=["a", "b", "c"]),
             name=dataset,
@@ -94,7 +110,7 @@ def test_log_record_that_makes_me_cry(mocked_client):
     rubrix.delete(dataset)
     rubrix.log(record, name=dataset)
 
-    records = rubrix.load(dataset, as_pandas=False)
+    records = rubrix.load(dataset)
     assert len(records) == 1
     assert records[0].text == record.text
     assert records[0].tokens == record.tokens
@@ -107,7 +123,7 @@ def test_log_record_that_makes_me_cry(mocked_client):
                     "chars_length": 6,
                     "density": 0.03225806451612903,
                     "label": "ENG",
-                    "score": 1.0,
+                    "score": 0.0,
                     "tokens_length": 1,
                     "value": "access",
                 }
@@ -505,6 +521,7 @@ def test_search_keywords(mocked_client):
     rubrix.log(name=dataset, records=dataset_rb)
 
     df = rubrix.load(dataset, query="lis*")
+    df = df.to_pandas()
     assert not df.empty
     assert "search_keywords" in df.columns
     top_keywords = set(

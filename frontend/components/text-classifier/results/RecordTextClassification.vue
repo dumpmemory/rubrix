@@ -17,24 +17,22 @@
 
 <template>
   <div class="record">
-    <!-- annotation labels and prediction status -->
     <div class="record--left">
-      <!-- record text -->
-      <RecordInputs :record="record" />
-      <ClassifierAnnotationArea
+      <record-inputs :record="record" />
+      <classifier-annotation-area
         v-if="annotationEnabled"
         :dataset="dataset"
         :record="record"
         @validate="validateLabels"
         @reset="resetLabels"
       />
-      <ClassifierExplorationArea v-else :dataset="dataset" :record="record" />
+      <classifier-exploration-area v-else :dataset="dataset" :record="record" />
       <div v-if="annotationEnabled" class="content__actions-buttons">
-        <re-button
+        <base-button
           v-if="allowValidate"
-          class="button-primary"
+          class="primary"
           @click="onValidate(record)"
-          >Validate</re-button
+          >Validate</base-button
         >
       </div>
     </div>
@@ -44,11 +42,11 @@
         <svgicon
           v-if="record.predicted && !labellingRulesView"
           :class="['icon__predicted', record.predicted]"
-          width="20"
-          height="20"
-          :name="record.predicted === 'ko' ? 'predicted-ko' : 'predicted-ok'"
+          width="40"
+          height="40"
+          :name="record.predicted === 'ko' ? 'no-matching' : 'matching'"
         ></svgicon>
-        <re-tag
+        <base-tag
           v-for="label in record.annotation.labels"
           :key="label.class"
           :name="label.class"
@@ -59,8 +57,8 @@
 </template>
 
 <script>
-import "assets/icons/predicted-ok";
-import "assets/icons/predicted-ko";
+import "assets/icons/matching";
+import "assets/icons/no-matching";
 import { mapActions } from "vuex";
 import {
   TextClassificationRecord,
@@ -107,18 +105,20 @@ export default {
     },
 
     async validateLabels({ labels }) {
+      const annotation = {
+        labels: labels.map((label) => ({
+          class: label,
+          score: 1.0,
+        })),
+      };
+
       await this.validateAnnotations({
         dataset: this.dataset,
         agent: this.$auth.user.username,
         records: [
           {
             ...this.record,
-            annotation: {
-              labels: labels.map((label) => ({
-                class: label,
-                score: 1.0,
-              })),
-            },
+            annotation,
           },
         ],
       });
@@ -154,7 +154,7 @@ export default {
     width: 100%;
     padding: 50px 20px 50px 50px;
     .list__item--annotation-mode & {
-      padding-left: 65px;
+      padding-right: 240px;
     }
   }
   &__labels {
@@ -166,22 +166,20 @@ export default {
     overflow: auto;
     text-align: right;
     padding: 4em 1.4em 1em 1em;
+    @extend %hide-scrollbar;
   }
 }
 
 .icon {
   &__predicted {
-    display: block;
-    text-align: right;
-    margin-right: 0;
-    margin-left: auto;
-    margin-bottom: 1em;
+    position: absolute;
+    right: 3em;
+    top: 1em;
     &.ko {
-      transform: scaleX(-1);
-      fill: $error;
+      color: $error;
     }
     &.ok {
-      fill: $success;
+      color: $success;
     }
   }
 }
@@ -192,13 +190,10 @@ export default {
     margin-left: auto;
     display: flex;
     min-width: 20%;
-    .re-button {
-      min-height: 32px;
-      line-height: 32px;
-      display: block;
+    .button {
       margin: 1.5em auto 0 0;
-      & + .re-button {
-        margin-left: 1em;
+      & + .button {
+        margin-left: $base-space * 2;
       }
     }
   }

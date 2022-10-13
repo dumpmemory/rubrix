@@ -16,18 +16,18 @@
   -->
 
 <template>
-  <div class="sort">
+  <div :class="[selectedField ? 'selected' : '', 'sort']">
     <svgicon
       v-if="selectedField"
       title="remove field"
       class="sort__remove-button"
-      name="cross"
+      name="close"
       width="14"
       height="14"
       @click="removeField()"
     />
     <FilterDropdown
-      class="dropdown--filter"
+      color-type="grey"
       :class="{ highlighted: visible }"
       :visible="visible"
       @visibility="onVisibility"
@@ -37,20 +37,14 @@
         <span v-else>Sort by</span>
       </span>
       <div slot="dropdown-content">
-        <input
-          v-model="searchText"
-          class="filter-options"
-          type="text"
-          autofocus
-          placeholder="Search..."
+        <select-options-search v-model="searchText" />
+        <select-options
+          ref="options"
+          type="single"
+          :option-name="optionName"
+          :options="filteredSortOptions"
+          @selected="addField"
         />
-        <ul>
-          <li v-for="option in filteredSortOptions" :key="option.text">
-            <a href="#" @click.prevent="addField(option)">
-              {{ option.name }}
-            </a>
-          </li>
-        </ul>
       </div>
     </FilterDropdown>
     <p
@@ -60,18 +54,18 @@
       @click="selectSortDirection()"
     >
       <svgicon
-        width="17"
+        width="24"
         height="24"
-        :name="defaultSortedByDir === 'asc' ? 'arrow-top' : 'arrow-bottom'"
+        :name="defaultSortedByDir === 'asc' ? 'arrow-up' : 'arrow-down'"
       />
     </p>
   </div>
 </template>
 
 <script>
-import "assets/icons/cross";
-import "assets/icons/arrow-top";
-import "assets/icons/arrow-bottom";
+import "assets/icons/close";
+import "assets/icons/arrow-up";
+import "assets/icons/arrow-down";
 export default {
   props: {
     sortOptions: {
@@ -87,28 +81,13 @@ export default {
     visible: false,
     defaultSortedBy: undefined,
     defaultSortedByDir: "asc",
-    searchText: undefined,
+    searchText: "",
   }),
   computed: {
     filteredSortOptions() {
-      if (this.searchText === undefined) {
-        return this.formatSortOptions;
-      }
-      let filtered = this.formatSortOptions.filter((opt) =>
+      return this.sortOptions.filter((opt) =>
         opt.name.toLowerCase().match(this.searchText.toLowerCase())
       );
-      return filtered;
-    },
-    formatSortOptions() {
-      return this.sortOptions.map((opt) => {
-        if (opt.group.toLowerCase() === "metadata") {
-          return {
-            ...opt,
-            name: `Metadata.${opt.name}`,
-          };
-        }
-        return opt;
-      });
     },
   },
   mounted() {
@@ -140,6 +119,9 @@ export default {
       this.defaultSortedBy = currentSort;
       this.$emit("addSortField", currentSort, this.defaultSortedByDir);
     },
+    optionName(option) {
+      return option.name;
+    },
   },
 };
 </script>
@@ -149,32 +131,29 @@ export default {
   display: flex;
   align-items: center;
   &__remove-button {
-    position: absolute;
-    left: 20px;
+    position: relative;
     margin-right: 1em;
     cursor: pointer;
+    flex-shrink: 0;
   }
   &__direction {
     position: relative;
     padding: 0.5em;
     @include font-size(20px);
     margin: 0 0 0 0.5em;
-    background: palette(grey, light);
+    background: palette(grey, 700);
     border-radius: $border-radius;
     min-width: 50px;
     min-height: 45px;
     text-align: center;
     cursor: pointer;
   }
+  &:not(.selected) {
+    margin-left: 2em;
+  }
   .dropdown {
     width: 100%;
-    max-width: 280px;
-    a {
-      word-break: break-all;
-      text-decoration: none;
-      max-width: 250px;
-      display: block;
-    }
+    max-width: 270px;
   }
 }
 </style>

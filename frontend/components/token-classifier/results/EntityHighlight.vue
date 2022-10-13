@@ -35,14 +35,14 @@
       v-if="annotationEnabled && span.origin === 'annotation'"
       width="11"
       height="11"
-      name="cross"
+      name="close"
     ></svgicon>
     <lazy-text-span-tooltip v-if="showTooltip" :span="span" />
   </span>
 </template>
 
 <script>
-import "assets/icons/cross";
+import "assets/icons/close";
 
 export default {
   props: {
@@ -114,7 +114,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-::v-deep .whitespace {
+:deep(.whitespace) {
   background: palette(white);
   padding-bottom: 3px;
   border-bottom: 5px solid palette(white);
@@ -161,9 +161,9 @@ export default {
   position: absolute;
   top: -23px;
   right: -3px;
-  border-radius: 3px;
+  border-radius: $border-radius-s;
   min-width: 10px;
-  background: palette(grey, dark);
+  background: $font-dark;
   fill: palette(white);
   padding: 2px;
 }

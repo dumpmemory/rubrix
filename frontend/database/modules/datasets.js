@@ -111,11 +111,11 @@ async function _loadTaskDataset(dataset) {
       query: {},
       size: 0,
     });
-
     _dataset = await _updateTaskDataset({
       dataset: _dataset,
       data: { globalResults },
     });
+    await _refreshDatasetAggregations({ dataset: _dataset });
   }
 
   if (pagination && pagination.page > 1) {
@@ -630,6 +630,7 @@ const actions = {
       page: pagination.page,
     });
     await _refreshDatasetAggregations({ dataset: paginatedDataset });
+    await _fetchAnnotationProgress(paginatedDataset);
   },
 };
 

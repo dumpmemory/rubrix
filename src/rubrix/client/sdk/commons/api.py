@@ -26,11 +26,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 import json
-from typing import Any, List, Type, TypeVar, Union
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
 import httpx
 
 from rubrix.client.sdk.client import AuthenticatedClient
+from rubrix.client.sdk.commons.errors import GenericApiError
 from rubrix.client.sdk.commons.errors_handler import handle_response_error
 from rubrix.client.sdk.commons.models import (
     BulkResponse,
@@ -47,6 +48,17 @@ _TASK_TO_ENDPOINT = {
     TokenClassificationBulkData: "TokenClassification",
     Text2TextBulkData: "Text2Text",
 }
+
+
+def build_param_dict(
+    id_from: Optional[str], limit: Optional[int]
+) -> Optional[Dict[str, Union[str, int]]]:
+    params = {}
+    if id_from:
+        params["id_from"] = id_from
+    if limit:
+        params["limit"] = limit
+    return params
 
 
 def bulk(
@@ -112,12 +124,19 @@ def build_data_response(
     response: httpx.Response, data_type: Type[T]
 ) -> Response[List[T]]:
     if 200 <= response.status_code < 400:
-        parsed_response = [data_type(**json.loads(r)) for r in response.iter_lines()]
+        parsed_responses = []
+        for r in response.iter_lines():
+            parsed_record = json.loads(r)
+            try:
+                parsed_response = data_type(**parsed_record)
+            except Exception as err:
+                raise GenericApiError(**parsed_record) from None
+            parsed_responses.append(parsed_response)
         return Response(
             status_code=response.status_code,
             content=b"",
             headers=response.headers,
-            parsed=parsed_response,
+            parsed=parsed_responses,
         )
 
     content = next(response.iter_lines())

@@ -12,13 +12,17 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import httpx
 
 from rubrix.client.sdk._helpers import build_typed_response
 from rubrix.client.sdk.client import AuthenticatedClient
-from rubrix.client.sdk.commons.api import build_data_response, build_list_response
+from rubrix.client.sdk.commons.api import (
+    build_data_response,
+    build_list_response,
+    build_param_dict,
+)
 from rubrix.client.sdk.commons.models import ErrorMessage, HTTPValidationError, Response
 from rubrix.client.sdk.text_classification.models import (
     LabelingRule,
@@ -33,18 +37,16 @@ def data(
     name: str,
     request: Optional[TextClassificationQuery] = None,
     limit: Optional[int] = None,
+    id_from: Optional[str] = None,
 ) -> Response[Union[List[TextClassificationRecord], HTTPValidationError, ErrorMessage]]:
-    url = "{}/api/datasets/{name}/TextClassification/data".format(
-        client.base_url, name=name
-    )
 
-    with httpx.stream(
+    path = f"/api/datasets/{name}/TextClassification/data"
+    params = build_param_dict(id_from, limit)
+
+    with client.stream(
         method="POST",
-        url=url,
-        headers=client.get_headers(),
-        cookies=client.get_cookies(),
-        timeout=None,
-        params={"limit": limit} if limit else None,
+        path=path,
+        params=params if params else None,
         json=request.dict() if request else {},
     ) as response:
         return build_data_response(

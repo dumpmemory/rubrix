@@ -122,7 +122,7 @@ def test_sort_by(monkeypatch, sort_by, expected):
         )
 
     record = rb.TextClassificationRecord(
-        inputs="mock", prediction=[("mock", 0.1)], annotation="mock"
+        text="mock", prediction=[("mock", 0.1)], annotation="mock"
     )
     find_label_errors(records=[record], sort_by=sort_by)
 
@@ -210,7 +210,7 @@ def test_construct_s_and_psx(records):
 def test_missing_predictions():
     records = [
         rb.TextClassificationRecord(
-            inputs="test", annotation="mock", prediction=[("mock2", 0.1)]
+            text="test", annotation="mock", prediction=[("mock2", 0.1)]
         )
     ]
     with pytest.raises(
@@ -221,7 +221,7 @@ def test_missing_predictions():
 
     records.append(
         rb.TextClassificationRecord(
-            inputs="test", annotation="mock", prediction=[("mock", 0.1)]
+            text="test", annotation="mock", prediction=[("mock", 0.1)]
         )
     )
     with pytest.raises(
@@ -242,6 +242,6 @@ def dataset(mocked_client, records):
 
 
 def test_find_label_errors_integration(dataset):
-    records = rb.load(dataset, as_pandas=False)
+    records = rb.load(dataset)
     recs = find_label_errors(records)
     assert [rec.id for rec in recs] == list(range(0, 11, 2)) + list(range(1, 12, 2))

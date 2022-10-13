@@ -4,7 +4,7 @@
       class="datasets-empty__icon"
       width="44"
       height="46"
-      name="datasets-empty"
+      name="unavailable"
     />
     <p class="datasets-empty__title">There aren't any datasets yet</p>
     <p class="datasets-empty__subtitle">
@@ -13,12 +13,12 @@
       <a href="https://docs.rubrix.ml/" target="_blank">see the docs</a> for
       more information.
     </p>
-    <re-code :code="generateCodeSnippet()"></re-code>
+    <base-code :code="generateCodeSnippet()"></base-code>
   </div>
 </template>
 
 <script>
-import "assets/icons/datasets-empty";
+import "assets/icons/unavailable";
 export default {
   props: {
     workspace: {
@@ -44,7 +44,7 @@ rb.log(
   text-align: center;
   margin: auto;
   margin-top: 12%;
-  color: palette(grey, medium);
+  color: $font-medium;
   max-width: 610px;
   line-height: 20px;
   &__icon {

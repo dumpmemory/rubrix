@@ -69,13 +69,13 @@
           </template>
         </DynamicScroller>
       </div>
-      <RePagination
+      <base-pagination
         :total-items="dataset.results.total"
         :pagination-settings="dataset.viewSettings.pagination"
         @changePage="onPagination"
       />
     </div>
-    <LazyReModal
+    <lazy-base-modal
       modal-class="modal-secondary"
       modal-position="modal-center"
       :modal-custom="true"
@@ -83,7 +83,7 @@
       :modal-visible="selectedRecord !== undefined"
       @close-modal="onCloseMetadata"
     >
-      <Metadata
+      <metadata
         v-if="selectedRecord"
         :applied-filters="dataset.query.metadata"
         :metadata-items="selectedRecord.metadata"
@@ -91,11 +91,11 @@
         @metafilterApply="onApplyMetadataFilter"
         @cancel="onCloseMetadata"
       />
-    </LazyReModal>
+    </lazy-base-modal>
   </span>
 </template>
 <script>
-import "assets/icons/empty-results";
+import "assets/icons/unavailable";
 import { mapActions } from "vuex";
 export default {
   props: {
@@ -110,7 +110,7 @@ export default {
       selectedRecord: undefined,
       emptySearchInfo: {
         // message: "There is no result. <br />Try another query.",
-        icon: "empty-results",
+        icon: "unavailable",
       },
     };
   },
@@ -179,9 +179,7 @@ export default {
     padding-left: 4em;
     padding-bottom: 260px;
     transition: padding 0s ease-in-out 0.1s;
-    &::-webkit-scrollbar {
-      display: none;
-    }
+    @extend %hide-scrollbar;
   }
   &__li {
     position: relative;
@@ -193,12 +191,10 @@ export default {
 <style lang="scss">
 .vue-recycle-scroller__item-wrapper {
   box-sizing: content-box;
-  padding-bottom: 260px;
 }
 .vue-recycle-scroller__item-view {
   box-sizing: border-box;
 }
-
 $maxItemsperPage: 20;
 @for $i from 0 through $maxItemsperPage {
   .vue-recycle-scroller__item-view:nth-of-type(#{$i}) {

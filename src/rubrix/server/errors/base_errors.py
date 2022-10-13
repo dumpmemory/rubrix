@@ -1,3 +1,17 @@
+#  Copyright 2021-present, the Recognai S.L. team.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 from typing import Any, Dict, Optional, Type, Union
 
 import pydantic
@@ -57,7 +71,9 @@ class ValidationError(RubrixServerError):
 
 class GenericRubrixServerError(RubrixServerError):
     def __init__(self, error: Exception):
-        self.error = error
+        self.type = f"{type(error).__module__}.{type(error).__name__}"
+        self.message = str(error)
+        self.args = error.args
 
     @classmethod
     def api_documentation(cls):
@@ -69,20 +85,6 @@ class GenericRubrixServerError(RubrixServerError):
             },
         }
 
-    @classmethod
-    def get_error_code(cls):
-        raise NotImplementedError(
-            "This class method is not supported for generic server error"
-        )
-
-    @property
-    def code(self) -> str:
-        return f"{type(self.error).__module__}.{type(self.error).__name__}"
-
-    @property
-    def arguments(self):
-        return {}
-
 
 class ForbiddenOperationError(RubrixServerError):
     """Forbidden operation"""
@@ -91,6 +93,15 @@ class ForbiddenOperationError(RubrixServerError):
 
     def __init__(self, message: Optional[str] = None):
         self.detail = message or "Operation not allowed"
+
+
+class UnauthorizedError(RubrixServerError):
+    """Unauthorized operation"""
+
+    HTTP_STATUS = status.HTTP_401_UNAUTHORIZED
+
+    def __init__(self, message: Optional[str] = None):
+        self.detail = message or "Could not validate credentials"
 
 
 class BadRequestError(RubrixServerError):
